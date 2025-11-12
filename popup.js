@@ -8,6 +8,9 @@
   const sendButton = document.getElementById('send-button');
   const chatContainer = document.getElementById('chat-container');
   const clearChatLink = document.getElementById('clear-chat');
+  const clearChatButton = document.getElementById('clear-chat-button');
+  const resizeButton = document.getElementById('resize-button');
+  const resizeMenu = document.getElementById('resize-menu');
 
   // Chat history
   let chatHistory = [];
@@ -628,6 +631,84 @@
   }
 
   /**
+   * Toggle resize menu
+   */
+  function toggleResizeMenu() {
+    const isVisible = resizeMenu.style.display !== 'none';
+    resizeMenu.style.display = isVisible ? 'none' : 'block';
+  }
+
+  /**
+   * Get current window size
+   */
+  function getCurrentSize() {
+    const width = document.body.offsetWidth;
+    const height = document.body.offsetHeight;
+    
+    if (width === 400 && height === 500) return 'small';
+    if (width === 450 && height === 600) return 'medium';
+    if (width === 550 && height === 700) return 'large';
+    if (width === 650 && height === 800) return 'xlarge';
+    return 'medium'; // default
+  }
+
+  /**
+   * Update active size indicator
+   */
+  function updateActiveSizeIndicator() {
+    const currentSize = getCurrentSize();
+    const options = document.querySelectorAll('.resize-option');
+    options.forEach(option => {
+      if (option.dataset.size === currentSize) {
+        option.classList.add('active');
+      } else {
+        option.classList.remove('active');
+      }
+    });
+  }
+
+  /**
+   * Resize window
+   */
+  function resizeWindow(size) {
+    const sizes = {
+      small: { width: 400, height: 500 },
+      medium: { width: 450, height: 600 },
+      large: { width: 550, height: 700 },
+      xlarge: { width: 650, height: 800 }
+    };
+
+    const dimensions = sizes[size];
+    if (dimensions) {
+      document.body.style.width = dimensions.width + 'px';
+      document.body.style.height = dimensions.height + 'px';
+      
+      // Save preference
+      chrome.storage.local.set({ windowSize: size });
+      
+      // Update indicator
+      setTimeout(updateActiveSizeIndicator, 100);
+    }
+
+    // Close menu
+    resizeMenu.style.display = 'none';
+  }
+
+  /**
+   * Load saved window size
+   */
+  function loadSavedSize() {
+    chrome.storage.local.get(['windowSize'], (result) => {
+      if (result.windowSize) {
+        resizeWindow(result.windowSize);
+      } else {
+        // Set default to medium
+        updateActiveSizeIndicator();
+      }
+    });
+  }
+
+  /**
    * Escape HTML to prevent XSS
    */
   function escapeHtml(text) {
@@ -666,10 +747,36 @@
     // Auto-resize textarea
     questionInput.addEventListener('input', autoResizeTextarea);
 
-    // Clear chat link
+    // Clear chat link (footer)
     clearChatLink.addEventListener('click', (event) => {
       event.preventDefault();
       clearChat();
+    });
+
+    // Clear chat button (header)
+    clearChatButton.addEventListener('click', () => {
+      clearChat();
+    });
+
+    // Resize button
+    resizeButton.addEventListener('click', () => {
+      toggleResizeMenu();
+    });
+
+    // Resize options
+    const resizeOptions = document.querySelectorAll('.resize-option');
+    resizeOptions.forEach(option => {
+      option.addEventListener('click', () => {
+        const size = option.dataset.size;
+        resizeWindow(size);
+      });
+    });
+
+    // Close resize menu when clicking outside
+    document.addEventListener('click', (event) => {
+      if (!resizeButton.contains(event.target) && !resizeMenu.contains(event.target)) {
+        resizeMenu.style.display = 'none';
+      }
     });
 
     // Focus input on load
@@ -677,6 +784,9 @@
 
     // Load previous chat history
     loadChatHistory();
+
+    // Load saved window size
+    loadSavedSize();
   }
 
   // Initialize when DOM is ready

@@ -10,11 +10,41 @@
   <div class="popup-container">
     <!-- Header -->
     <div class="popup-header">
-      <h1 class="popup-title">
-        <img src="icons/icon32.png" alt="Atlan" class="popup-icon">
-        Atlan AI Search
-      </h1>
+      <div class="header-top">
+        <h1 class="popup-title">
+          <img src="icons/icon32.png" alt="Atlan" class="popup-icon">
+          Atlan AI Search
+        </h1>
+        <div class="header-actions">
+          <button id="resize-button" class="icon-button" title="Resize window">
+            <span>⛶</span>
+          </button>
+          <button id="clear-chat-button" class="icon-button" title="Clear chat">
+            <span>🗑️</span>
+          </button>
+        </div>
+      </div>
       <p class="popup-subtitle">✨ Ask questions about your data catalog</p>
+    </div>
+
+    <!-- Resize Options (hidden by default) -->
+    <div id="resize-menu" class="resize-menu" style="display: none;">
+      <div class="resize-option" data-size="small">
+        <span class="resize-label">Small</span>
+        <span class="resize-dimensions">400×500</span>
+      </div>
+      <div class="resize-option" data-size="medium">
+        <span class="resize-label">Medium</span>
+        <span class="resize-dimensions">450×600</span>
+      </div>
+      <div class="resize-option" data-size="large">
+        <span class="resize-label">Large</span>
+        <span class="resize-dimensions">550×700</span>
+      </div>
+      <div class="resize-option" data-size="xlarge">
+        <span class="resize-label">Extra Large</span>
+        <span class="resize-dimensions">650×800</span>
+      </div>
     </div>
 
     <!-- Chat Messages -->

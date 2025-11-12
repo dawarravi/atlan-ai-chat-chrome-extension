@@ -42,7 +42,7 @@ body {
 .popup-header {
   background: linear-gradient(135deg, var(--atlan-blue) 0%, #3638DD 100%);
   color: var(--atlan-white);
-  padding: 20px 20px 24px 20px;
+  padding: 16px 20px 20px 20px;
   position: relative;
   overflow: hidden;
 }
@@ -58,6 +58,46 @@ body {
   border-radius: 50%;
 }
 
+.header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  position: relative;
+  z-index: 1;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.icon-button {
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: var(--atlan-white);
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  backdrop-filter: blur(10px);
+}
+
+.icon-button:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.4);
+  transform: scale(1.05);
+}
+
+.icon-button:active {
+  transform: scale(0.95);
+}
+
 .popup-title {
   display: flex;
   align-items: center;
@@ -65,7 +105,7 @@ body {
   font-family: 'Gilroy', 'Avenir', sans-serif;
   font-size: 20px;
   font-weight: 700;
-  margin: 0 0 6px 0;
+  margin: 0;
   position: relative;
   z-index: 1;
   letter-spacing: -0.5px;
@@ -85,6 +125,57 @@ body {
   position: relative;
   z-index: 1;
   letter-spacing: 0.2px;
+}
+
+/* Resize Menu */
+.resize-menu {
+  background: var(--atlan-white);
+  border-bottom: 1px solid rgba(32, 38, 210, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.resize-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-left: 3px solid transparent;
+}
+
+.resize-option:hover {
+  background: linear-gradient(90deg, rgba(32, 38, 210, 0.05) 0%, transparent 100%);
+  border-left-color: var(--atlan-cyan);
+}
+
+.resize-option.active {
+  background: linear-gradient(90deg, rgba(98, 225, 252, 0.1) 0%, transparent 100%);
+  border-left-color: var(--atlan-blue);
+}
+
+.resize-label {
+  font-weight: 600;
+  color: var(--atlan-dark-gray);
+  font-size: 14px;
+}
+
+.resize-dimensions {
+  font-size: 12px;
+  color: var(--atlan-light-gray);
+  font-family: 'SF Mono', 'Monaco', monospace;
 }
 
 /* Chat Container - Clean White Background */
