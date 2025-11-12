@@ -229,9 +229,9 @@ async function callAtlanMCP(toolName, toolInput) {
 }
 
 /**
- * Send message to Claude with tool use capability
+ * Send message to Claude with tool use capability (streaming version)
  */
-async function askClaude(messages, tools) {
+async function askClaude(messages, tools, streamId = null) {
     console.log('Asking Claude with tools:', tools);
     console.log('Messages:', messages);
 
@@ -241,7 +241,8 @@ async function askClaude(messages, tools) {
             model: CONFIG.claude.model,
             max_tokens: CONFIG.claude.maxTokens,
             messages: messages,
-            tools: tools
+            tools: tools,
+            stream: true  // Enable streaming
         };
 
         // Add system prompt for rich, detailed formatting
@@ -302,10 +303,122 @@ Extract and present ALL metadata from the tool results - don't summarize or omit
             throw new Error(`Claude API error: ${response.status} ${response.statusText}`);
         }
 
-        const data = await response.json();
-        console.log('Claude response:', data);
+        // Handle streaming response
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
 
-        return data;
+        let accumulatedText = '';
+        let currentContent = [];
+        let stopReason = null;
+        let buffer = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+            for (const line of lines) {
+                if (!line.trim() || line.startsWith(':')) continue;
+
+                if (line.startsWith('data: ')) {
+                    const data = line.slice(6);
+
+                    if (data === '[DONE]') continue;
+
+                    try {
+                        const event = JSON.parse(data);
+
+                        if (event.type === 'content_block_start') {
+                            const block = event.content_block;
+                            // Initialize tool use input as empty string for accumulation
+                            if (block.type === 'tool_use') {
+                                block._input_json = '';  // Temporary accumulator
+                            }
+                            currentContent.push(block);
+                        } else if (event.type === 'content_block_delta') {
+                            const delta = event.delta;
+
+                            if (delta.type === 'text_delta') {
+                                accumulatedText += delta.text;
+
+                                // Send incremental update to UI
+                                if (streamId) {
+                                    sendProgressUpdate(streamId, 'content', {
+                                        text: accumulatedText,
+                                        isComplete: false
+                                    });
+                                }
+                            } else if (delta.type === 'input_json_delta') {
+                                // Handle tool use input accumulation
+                                const lastBlock = currentContent[currentContent.length - 1];
+                                if (lastBlock && lastBlock.type === 'tool_use') {
+                                    if (!lastBlock._input_json) lastBlock._input_json = '';
+                                    lastBlock._input_json += delta.partial_json;
+                                }
+                            }
+                        } else if (event.type === 'message_delta') {
+                            if (event.delta.stop_reason) {
+                                stopReason = event.delta.stop_reason;
+                            }
+                        } else if (event.type === 'message_stop') {
+                            // Message complete
+                        }
+                    } catch (e) {
+                        console.error('Error parsing SSE event:', e, data);
+                    }
+                }
+            }
+        }
+
+        // Parse tool use inputs if any
+        for (const block of currentContent) {
+            if (block.type === 'tool_use') {
+                // Use accumulated JSON string from streaming
+                if (block._input_json) {
+                    try {
+                        block.input = JSON.parse(block._input_json);
+                        delete block._input_json;  // Clean up temporary field
+                    } catch (e) {
+                        console.error('Error parsing tool input JSON:', e, block._input_json);
+                        block.input = {};  // Fallback to empty object
+                    }
+                } else if (!block.input) {
+                    // No input received, set empty object
+                    block.input = {};
+                }
+            }
+        }
+
+        // Build final content array, ensuring no empty text blocks
+        const finalContent = [];
+
+        // Add accumulated text first if non-empty
+        if (accumulatedText && accumulatedText.trim().length > 0) {
+            finalContent.push({
+                type: 'text',
+                text: accumulatedText
+            });
+        }
+
+        // Add non-text blocks (like tool_use)
+        for (const block of currentContent) {
+            if (block.type !== 'text') {
+                finalContent.push(block);
+            }
+        }
+
+        const result = {
+            content: finalContent,
+            stop_reason: stopReason || 'end_turn'
+        };
+
+        console.log('Claude streaming complete:', result);
+        return result;
+
     } catch (error) {
         console.error('Error calling Claude:', error);
         throw error;
@@ -557,17 +670,19 @@ async function processConversationWithUpdates(userQuestion, history, streamId) {
 
         sendProgressUpdate(streamId, 'progress', { status: 'Thinking...' });
 
-        // Ask Claude with discovered tools
-        const claudeResponse = await askClaude(conversationMessages, tools);
+        // Ask Claude with discovered tools (with streaming)
+        const claudeResponse = await askClaude(conversationMessages, tools, streamId);
 
         // Check stop reason
         if (claudeResponse.stop_reason === 'end_turn') {
             const finalContent = claudeResponse.content
-                .filter(block => block.type === 'text')
+                .filter(block => block.type === 'text' && block.text && block.text.trim())
                 .map(block => block.text)
                 .join('\n');
 
-            accumulatedText += finalContent;
+            if (finalContent) {
+                accumulatedText += finalContent;
+            }
             sendProgressUpdate(streamId, 'content', { text: accumulatedText, isComplete: true });
 
             return {
@@ -579,11 +694,11 @@ async function processConversationWithUpdates(userQuestion, history, streamId) {
 
             // Extract any text content before tool use
             const textContent = claudeResponse.content
-                .filter(block => block.type === 'text')
+                .filter(block => block.type === 'text' && block.text && block.text.trim())
                 .map(block => block.text)
                 .join('\n');
 
-            if (textContent) {
+            if (textContent && textContent.trim()) {
                 accumulatedText += textContent + '\n';
                 sendProgressUpdate(streamId, 'content', { text: accumulatedText });
             }
@@ -642,11 +757,13 @@ async function processConversationWithUpdates(userQuestion, history, streamId) {
             console.log('Claude stopped with reason:', claudeResponse.stop_reason);
 
             const finalContent = claudeResponse.content
-                .filter(block => block.type === 'text')
+                .filter(block => block.type === 'text' && block.text && block.text.trim())
                 .map(block => block.text)
                 .join('\n');
 
-            accumulatedText += finalContent;
+            if (finalContent) {
+                accumulatedText += finalContent;
+            }
             sendProgressUpdate(streamId, 'content', { text: accumulatedText, isComplete: true });
 
             return {

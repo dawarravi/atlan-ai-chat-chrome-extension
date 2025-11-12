@@ -327,17 +327,25 @@
       
       progressPort = chrome.runtime.connect({ name: 'progress-stream' });
       
-      progressPort.onMessage.addListener((msg) => {
-        if (msg.type === 'stream_ready') {
-          currentStreamId = msg.streamId;
-          resolve(currentStreamId);
-        } else if (msg.type === 'progress') {
-          updateLoadingText(msg.status);
-        } else if (msg.type === 'content') {
-          removeLoading();
-          updateStreamingMessage(msg.text, msg.isComplete);
+    progressPort.onMessage.addListener((msg) => {
+      if (msg.type === 'stream_ready') {
+        currentStreamId = msg.streamId;
+        resolve(currentStreamId);
+      } else if (msg.type === 'progress') {
+        updateLoadingText(msg.status);
+      } else if (msg.type === 'content') {
+        // Remove loading indicator when streaming starts
+        removeLoading();
+        // Update the message with streaming content
+        updateStreamingMessage(msg.text, msg.isComplete);
+        
+        // If complete, save to history
+        if (msg.isComplete) {
+          chatHistory.push({ role: 'assistant', content: msg.text });
+          saveChatHistory();
         }
-      });
+      }
+    });
       
       progressPort.onDisconnect.addListener(() => {
         progressPort = null;
@@ -387,8 +395,12 @@
       removeLoading();
       
       if (response.type === 'answer') {
-        // Make sure the final message is properly stored
-        chatHistory.push({ role: 'assistant', content: response.answer });
+        // Check if we already added this to history via streaming
+        const lastMessage = chatHistory[chatHistory.length - 1];
+        if (!lastMessage || lastMessage.role !== 'assistant' || lastMessage.content !== response.answer) {
+          // Add to history if not already there
+          chatHistory.push({ role: 'assistant', content: response.answer });
+        }
         
         // Save chat history
         saveChatHistory();
@@ -446,14 +458,14 @@
       chatHistory = [];
       chatContainer.innerHTML = `
         <div class="welcome-message">
-          <p>👋 <strong>Hello!</strong></p>
-          <p>Ask me anything about your data in Atlan. I can help you:</p>
+          <p>👋 <strong>Welcome to Atlan AI!</strong></p>
+          <p>I'm your intelligent data catalog assistant. I can help you:</p>
           <ul>
-            <li>Find tables, columns, and datasets</li>
-            <li>Search glossary terms and definitions</li>
-            <li>Discover assets by description or tags</li>
+            <li>🔍 Find tables, columns, and datasets instantly</li>
+            <li>📚 Search glossary terms and business definitions</li>
+            <li>🏷️ Discover assets by tags, owners, or classifications</li>
           </ul>
-          <p class="tip-text">Try: "Show me all customer tables" or "Find assets with PII data"</p>
+          <p class="tip-text">💡 Try: "Show me customer tables owned by ravi" or "Find verified tables for sales analysis"</p>
         </div>
       `;
       saveChatHistory();
