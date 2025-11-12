@@ -13,8 +13,8 @@ const CONFIG = {
     claude: {
         apiKey: 'YOUR_CLAUDE_API_KEY_HERE', // Replace with your actual Claude API key
         apiEndpoint: 'https://api.anthropic.com/v1/messages',
-        model: 'claude-3-haiku-20240307', // Using cheapest model for testing
-        maxTokens: 1024
+        model: 'claude-sonnet-4-5-20250929', // Latest Claude Sonnet 4.5 model
+        maxTokens: 4096 // Increased for detailed responses
     }
 };
 
