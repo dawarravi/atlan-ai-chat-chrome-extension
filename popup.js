@@ -24,7 +24,7 @@
   let currentJokes = [];
   let showingJokes = false;
   let jokeStartTime = null;
-  let minJokeDisplayTime = 2000; // Minimum 2 seconds
+  let minJokeDisplayTime = 4000; // Minimum 4 seconds - ample time to read
 
   /**
    * Add a message to the chat
