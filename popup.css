@@ -267,6 +267,13 @@ body {
   color: var(--atlan-dark-gray);
   font-size: 13px;
   font-weight: 500;
+  animation: fadeInOut 0.5s ease-in-out;
+  min-width: 200px;
+}
+
+@keyframes fadeInOut {
+  0% { opacity: 0.7; transform: translateY(2px); }
+  100% { opacity: 1; transform: translateY(0); }
 }
 
 /* Input Section - Elevated Design */

@@ -15,6 +15,13 @@
   // Streaming connection
   let progressPort = null;
   let currentStreamId = null;
+  
+  // Joke rotation
+  let jokeInterval = null;
+  let currentJokes = [];
+  let showingJokes = false;
+  let jokeStartTime = null;
+  let minJokeDisplayTime = 2000; // Minimum 2 seconds
 
   /**
    * Add a message to the chat
@@ -246,11 +253,107 @@
       loadingText.textContent = text;
     }
   }
+  
+  /**
+   * Fetch a joke from background
+   */
+  async function fetchJoke() {
+    try {
+      const response = await chrome.runtime.sendMessage({ type: 'get_joke' });
+      return response.joke || 'Searching for your data... 🔍';
+    } catch (error) {
+      console.error('Error fetching joke:', error);
+      return 'Searching for your data... 🔍';
+    }
+  }
+  
+  /**
+   * Start rotating jokes while loading
+   */
+  async function startJokeRotation() {
+    console.log('🎭 Starting joke rotation...');
+    
+    // Clear any existing interval
+    if (jokeInterval) {
+      clearInterval(jokeInterval);
+    }
+    
+    showingJokes = true;
+    jokeStartTime = Date.now(); // Track when jokes started
+    
+    // Show a fallback joke IMMEDIATELY (no waiting!)
+    const fallbackJokes = [
+      "Why do data engineers prefer dark mode? Because light attracts bugs! 🐛",
+      "A SQL query walks into a bar, walks up to two tables and asks... 'Can I JOIN you?' 🍺",
+      "There are 10 types of people: those who understand binary and those who don't. 😄",
+      "Why did the database administrator leave his wife? She had one-to-many relationships! 💔",
+      "What's a data scientist's favorite type of tree? A decision tree! 🌳",
+      "What do you call a data catalog that tells jokes? A laugh-alog! 😂",
+      "How do you comfort a JavaScript bug? You console it! 🐞",
+      "Why did the data pipeline break up? Too many dependencies! 💥"
+    ];
+    const quickJoke = fallbackJokes[Math.floor(Math.random() * fallbackJokes.length)];
+    updateLoadingText('😄 ' + quickJoke);
+    console.log('🎭 Showing quick joke:', quickJoke);
+    
+    // Pre-fetch 3 jokes in background (for rotation)
+    currentJokes = [quickJoke];
+    const jokePromises = [fetchJoke(), fetchJoke()];
+    
+    // Wait for jokes to load, but don't block
+    Promise.all(jokePromises).then(newJokes => {
+      if (showingJokes) {
+        currentJokes.push(...newJokes);
+        console.log('🎭 Loaded', currentJokes.length, 'total jokes');
+      }
+    });
+    
+    let jokeIndex = 0;
+    
+    // Rotate jokes every 3.5 seconds
+    jokeInterval = setInterval(async () => {
+      if (!showingJokes) {
+        clearInterval(jokeInterval);
+        return;
+      }
+      
+      if (currentJokes.length > 1) {
+        jokeIndex = (jokeIndex + 1) % currentJokes.length;
+        const joke = currentJokes[jokeIndex];
+        updateLoadingText('😄 ' + joke);
+        console.log('🎭 Rotating to joke', jokeIndex + 1, ':', joke);
+        
+        // Fetch a new joke to keep fresh content
+        if (jokeIndex === 0 && currentJokes.length < 5) {
+          fetchJoke().then(newJoke => {
+            if (showingJokes) {
+              currentJokes.push(newJoke);
+            }
+          });
+        }
+      }
+    }, 3500);
+  }
+  
+  /**
+   * Stop rotating jokes
+   */
+  function stopJokeRotation() {
+    console.log('🎭 Stopping joke rotation');
+    showingJokes = false;
+    jokeStartTime = null;
+    if (jokeInterval) {
+      clearInterval(jokeInterval);
+      jokeInterval = null;
+    }
+    currentJokes = [];
+  }
 
   /**
    * Remove loading indicator
    */
   function removeLoading() {
+    stopJokeRotation(); // Stop joke rotation
     const loadingDiv = document.getElementById('loading-indicator');
     if (loadingDiv) {
       loadingDiv.remove();
@@ -332,8 +435,50 @@
         currentStreamId = msg.streamId;
         resolve(currentStreamId);
       } else if (msg.type === 'progress') {
-        updateLoadingText(msg.status);
+        // Stop jokes when real progress starts (but ensure minimum display time)
+        console.log('📡 Progress update:', msg.status);
+        if (showingJokes) {
+          const elapsedTime = Date.now() - jokeStartTime;
+          const timeRemaining = minJokeDisplayTime - elapsedTime;
+          
+          if (timeRemaining > 0) {
+            console.log(`🎭 Delaying progress update by ${timeRemaining}ms to show joke`);
+            // Delay the progress update to ensure joke is visible
+            setTimeout(() => {
+              if (showingJokes) {
+                stopJokeRotation();
+                updateLoadingText(msg.status);
+              }
+            }, timeRemaining);
+          } else {
+            console.log('🎭 Stopping jokes due to progress update');
+            stopJokeRotation();
+            updateLoadingText(msg.status);
+          }
+        } else {
+          updateLoadingText(msg.status);
+        }
       } else if (msg.type === 'content') {
+        // Ensure jokes are visible for minimum time before showing content
+        if (showingJokes && jokeStartTime) {
+          const elapsedTime = Date.now() - jokeStartTime;
+          const timeRemaining = minJokeDisplayTime - elapsedTime;
+          
+          if (timeRemaining > 0) {
+            console.log(`🎭 Delaying content by ${timeRemaining}ms to show joke`);
+            setTimeout(() => {
+              removeLoading();
+              updateStreamingMessage(msg.text, msg.isComplete);
+              
+              if (msg.isComplete) {
+                chatHistory.push({ role: 'assistant', content: msg.text });
+                saveChatHistory();
+              }
+            }, timeRemaining);
+            return;
+          }
+        }
+        
         // Remove loading indicator when streaming starts
         removeLoading();
         // Update the message with streaming content
@@ -376,8 +521,17 @@
     questionInput.disabled = true;
     sendButton.disabled = true;
     
-    // Show loading
-    showLoading('Analyzing your question...');
+    // Show loading with a joke immediately
+    const quickJokes = [
+      "Why do data engineers prefer dark mode? Because light attracts bugs! 🐛",
+      "A SQL query walks into a bar, walks up to two tables and asks... 'Can I JOIN you?' 🍺",
+      "There are 10 types of people: those who understand binary and those who don't. 😄"
+    ];
+    const randomJoke = quickJokes[Math.floor(Math.random() * quickJokes.length)];
+    showLoading('😄 ' + randomJoke);
+    
+    // Start rotating jokes to keep user entertained
+    startJokeRotation();
     
     try {
       // Setup streaming connection and wait for stream ID
@@ -408,6 +562,7 @@
         showError(response.error || 'An error occurred');
       }
     } catch (error) {
+      stopJokeRotation();
       removeLoading();
       console.error('Error sending question:', error);
       showError('Failed to communicate with the extension. Please try again.');

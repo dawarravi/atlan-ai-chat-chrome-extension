@@ -229,6 +229,72 @@ async function callAtlanMCP(toolName, toolInput) {
 }
 
 /**
+ * Generate a quick data joke using Claude (no streaming, no tools)
+ */
+async function generateDataJoke() {
+    try {
+        const prompts = [
+            "Tell me a short, clever one-liner joke about databases or data engineering. Keep it under 100 characters.",
+            "Give me a witty one-liner about SQL, data catalogs, or metadata. Make it punny and short.",
+            "Share a quick nerdy joke about data governance, schemas, or ETL pipelines. One sentence only.",
+            "Tell me a clever pun about data warehouses, data lakes, or big data. Keep it brief and funny.",
+            "Give me a short, humorous one-liner about data quality, data lineage, or data discovery."
+        ];
+
+        const randomPrompt = prompts[Math.floor(Math.random() * prompts.length)];
+
+        const response = await fetch(CONFIG.claude.apiEndpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': CONFIG.claude.apiKey,
+                'anthropic-version': '2023-06-01',
+                'anthropic-dangerous-direct-browser-access': 'true'
+            },
+            body: JSON.stringify({
+                model: CONFIG.claude.model,
+                max_tokens: 150,
+                messages: [{
+                    role: 'user',
+                    content: randomPrompt
+                }]
+            })
+        });
+
+        if (!response.ok) {
+            // Return a fallback joke if API fails
+            return getFallbackJoke();
+        }
+
+        const data = await response.json();
+        const joke = data.content[0]?.text || getFallbackJoke();
+        return joke.replace(/^["']|["']$/g, '').trim(); // Remove quotes if present
+    } catch (error) {
+        console.error('Error generating joke:', error);
+        return getFallbackJoke();
+    }
+}
+
+/**
+ * Fallback jokes in case Claude API is slow or fails
+ */
+function getFallbackJoke() {
+    const jokes = [
+        "Why do data engineers prefer dark mode? Because light attracts bugs! 🐛",
+        "A SQL query walks into a bar, walks up to two tables and asks... 'Can I JOIN you?' 🍺",
+        "There are 10 types of people: those who understand binary and those who don't. 😄",
+        "Why did the database administrator leave his wife? She had one-to-many relationships! 💔",
+        "What's a data scientist's favorite type of tree? A decision tree! 🌳",
+        "Why was the database feeling lonely? It had no relationships! 🥺",
+        "What do you call a data catalog that tells jokes? A laugh-alog! 😂",
+        "How do you comfort a JavaScript bug? You console it! 🐞",
+        "Why did the data pipeline break up? Too many dependencies! 💥",
+        "What's a database's favorite breakfast? Table syrup! 🥞"
+    ];
+    return jokes[Math.floor(Math.random() * jokes.length)];
+}
+
+/**
  * Send message to Claude with tool use capability (streaming version)
  */
 async function askClaude(messages, tools, streamId = null) {
@@ -614,6 +680,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'ping') {
         sendResponse({ type: 'pong' });
         return true;
+    }
+
+    if (message.type === 'get_joke') {
+        // Generate a data joke asynchronously
+        generateDataJoke()
+            .then(joke => {
+                sendResponse({ type: 'joke', joke: joke });
+            })
+            .catch(error => {
+                console.error('Error getting joke:', error);
+                sendResponse({ type: 'joke', joke: getFallbackJoke() });
+            });
+        return true; // Async response
     }
 
     return false;
