@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "Atlan AI Search",
+  "version": "2.0.0",
+  "description": "Ask natural language questions about your data catalog using Claude AI and Atlan MCP.",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://home.atlan.com/*",
+    "https://api.anthropic.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "Atlan AI Search"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
+

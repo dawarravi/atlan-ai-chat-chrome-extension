@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Atlan AI Search</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <!-- Header -->
+    <div class="popup-header">
+      <h1 class="popup-title">
+        <img src="icons/icon32.png" alt="Atlan" class="popup-icon">
+        Atlan AI Search
+      </h1>
+      <p class="popup-subtitle">Ask questions about your data catalog</p>
+    </div>
+
+    <!-- Chat Messages -->
+    <div id="chat-container" class="chat-container">
+      <div class="welcome-message">
+        <p>👋 <strong>Hello!</strong></p>
+        <p>Ask me anything about your data in Atlan. I can help you:</p>
+        <ul>
+          <li>Find tables, columns, and datasets</li>
+          <li>Search glossary terms and definitions</li>
+          <li>Discover assets by description or tags</li>
+        </ul>
+        <p class="tip-text">Try: "Show me all customer tables" or "Find assets with PII data"</p>
+      </div>
+    </div>
+
+    <!-- Input Section -->
+    <div class="input-section">
+      <textarea 
+        id="question-input" 
+        class="question-input" 
+        placeholder="Ask a question about your data..."
+        rows="2"
+      ></textarea>
+      <button id="send-button" class="send-button" title="Send">
+        <span>➤</span>
+      </button>
+    </div>
+
+    <!-- Footer -->
+    <div class="popup-footer">
+      <a href="https://home.atlan.com" target="_blank" class="footer-link">
+        Open Atlan
+      </a>
+      <span class="footer-divider">•</span>
+      <a href="#" id="clear-chat" class="footer-link">
+        Clear Chat
+      </a>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
+
